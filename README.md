@@ -1,170 +1,125 @@
 # MiningTaxes Discord Integration
 
-Discord integration components for the MiningTaxes Alliance Auth plugin.
+**What it does:** Makes MiningTaxes send Discord messages to your players!
 
-## 📁 What's Included
+## 📁 What You Get
 
-- **discord_integration.py** - Standalone Python module with all Discord functions
-- Complete integration with aa-discordbot and Alliance Auth Discord service
-- Three types of notifications: Webhooks, Individual DMs, Corp Summaries
+One file called `discord_integration.py` that can:
+- 💬 Send private messages to players
+- 📢 Post announcements in channels  
+- 📊 Show who owes taxes in a nice table
 
-## 🔧 Requirements
+## ⚙️ What You Need First
 
-### Core Dependencies
+**Step 1:** Install aa-discordbot
 ```bash
 pip install aa-discordbot
 ```
 
-### Required Alliance Auth Services
-- `allianceauth.services.modules.discord` - For Discord user ID lookup
-- `aa-discordbot` - For DM delivery and channel posting
+**Step 2:** Make sure your Alliance Auth has Discord turned on
 
-## 📦 Installation
+That's it! 
 
-### Option 1: Copy into existing MiningTaxes installation
+## 🚀 How to Use It
 
-1. Copy `discord_integration.py` to your MiningTaxes plugin directory:
-```bash
-cp miningtaxes-discord/discord_integration.py /path/to/miningtaxes/
-```
+### Super Simple Way
 
-2. Import the functions in your tasks or helpers:
-```python
-from .discord_integration import (
-    send_discord_notification,
-    send_discord_dm,
-    get_user_discord_id,
-    send_corp_tax_summary
-)
-```
+1. **Download the file**
+   - Grab `discord_integration.py` from this folder
 
-### Option 2: Use as reference module
+2. **Put it in your MiningTaxes folder**
+   - Drop it where your other MiningTaxes files are
 
-Use this file as documentation to see exactly what functions to add to your MiningTaxes plugin.
+3. **Tell MiningTaxes to use it**
+   - Add this to the top of your tasks.py file:
+   ```python
+   from .discord_integration import send_discord_dm, get_user_discord_id
+   ```
+
+4. **Done!** Now you can send Discord messages!
 
 ## 🎯 Functions
 
 ### 1. `send_discord_notification(webhook_url, title, message, color, username)`
 Sends public notifications to Discord channels via webhook.
+What Each Thing Does
 
-**Use case**: General announcements, tax reminders
-**Dependencies**: `requests` (standard)
+### 1. Send Channel Messages
+`send_discord_notification()` - Posts to a Discord channel everyone can see
 
-### 2. `send_discord_dm(user_discord_id, title, message, color)`
-Sends private DMs to individual users.
+**Example:** "Taxes are due on the 15th!"
 
-**Use case**: Personal tax notifications
-**Dependencies**: 
-- `aadiscordbot.tasks.send_message`
-- `discord.Embed`
+### 2. Send Private Messages  
+`send_discord_dm()` - Sends a secret message to one person
 
-### 3. `get_user_discord_id(user)`
-Retrieves Discord user ID from Alliance Auth.
+**Example:** "Hey John, you owe 500,000 ISK"
 
-**Use case**: Getting user's Discord ID for DMs
-**Dependencies**:
-- `allianceauth.services.modules.discord.models.DiscordUser`
+### 3. Find Someone's Discord
+`get_user_discord_id()` - Looks up a player's Discord username
 
-### 4. `send_corp_tax_summary(webhook_url, tax_data, channel_id)`
-Sends formatted tax reports to corp channel.
+**Example:** Finds that "john_doe" is Discord user #12345
 
-**Use case**: Corp-wide tax summaries
-**Dependencies**:
-- Primary: `aadiscordbot.tasks.send_message` + `discord.Embed`
-- Fallback: `requests` (webhook)
+### 4. Make a Tax Report
+`send_corp_tax_summary()` - Creates a pretty table showing who owes what
 
-## 💡 Usage Examples
-
-### Send a DM
+**Example:** Shows top 25 people who owe taxes with a leaderboard
 ```python
 from discord_integration import send_discord_dm, get_user_discord_id
 from django.contrib.auth.models import User
 
 user = User.objects.get(username='john_doe')
 discord_id = get_user_discord_id(user)
+Copy & Paste Examples
 
-if discord_id:
-    send_discord_dm(
-        discord_id,
-        "Taxes Due!",
-        "Please pay 1,234,567.89 ISK",
-        color=0xf39c12  # Orange
-    )
+### Example 1: Send Someone a Private Message
+```python
+# Get their Discord ID
+discord_id = get_user_discord_id(user)
+
+# Send them a message
+send_discord_dm(
+    discord_id,
+    "Taxes Due!",
+    "Please pay 1,234,567 ISK",
+    color=0xf39c12  # Makes it orange
+)
 ```
 
-### Send Corp Summary
+### Example 2: Post a Tax Report  
 ```python
-from discord_integration import send_corp_tax_summary
-
+# Make a list of who owes what
 tax_data = [
     {
-        'username': 'user1',
-        'main_character': 'Character Name 1',
-        'balance': 125.5  # millions ISK
-    },
-    {
-        'username': 'user2',
-        'main_character': 'Character Name 2',
-        'balance': 89.23
+        'username': 'john_doe',
+        'main_character': 'John Doe',
+        'balance': 125.5  # in millions
     }
 ]
 
-# Option 1: Via aadiscordbot (recommended)
+# Send it to Discord
 send_corp_tax_summary(None, tax_data, channel_id=YOUR_CHANNEL_ID)
-
-# Option 2: Via webhook
-send_corp_tax_summary("https://discord.com/api/webhooks/...", tax_data)
 ```
 
-### Integration in MiningTaxes Tasks
+### Example 3: Full Setup in MiningTaxes
 ```python
+# In your tasks.py file, add this:
+
 @shared_task
 def notify_taxes_due():
-    from .discord_integration import (
-        send_discord_dm, 
-        get_user_discord_id, 
-        send_corp_tax_summary
-    )
-    from .models import Settings
+    # Load the Discord tools
+    from .discord_integration import send_discord_dm, get_user_discord_id
     
-    settings = Settings.load()
-    user2taxes = calculate_taxes()  # Your tax calculation function
-    
-    corp_summary_data = []
-    
-    # Send individual DMs
-    for user, (balance, details) in user2taxes.items():
-        if balance > THRESHOLD and settings.discord_send_individual_dms:
-            discord_id = get_user_discord_id(user)
-            if discord_id:
-                send_discord_dm(
-                    discord_id,
-                    "Mining Taxes Due!",
-                    f"Please pay {balance:,.2f} ISK",
-                    color=0xf39c12
-                )
+    # For each person who owes taxes...
+    for user in users_who_owe_money:
+        discord_id = get_user_discord_id(user)
+        
+        if discord_id:
+            send_discord_dm(
+                discord_id,
+                "Taxes Due!",
+                f"You owe {amount} ISK",
+                color=0xf39c12
             
-            # Collect data for corp summary
-            corp_summary_data.append({
-                'username': user.username,
-                'main_character': user.profile.main_character.character_name,
-                'balance': balance / 1000000  # Convert to millions
-            })
-    
-    # Send corp summary
-    if corp_summary_data and settings.discord_send_corp_summary:
-        channel_id = settings.discord_corp_channel_id or None
-        webhook = settings.discord_corp_webhook_url or settings.discord_webhook_url
-        send_corp_tax_summary(webhook, corp_summary_data, channel_id=channel_id)
-```
-
-## ⚙️ Configuration
-
-### Required Settings Model Fields
-
-Add these to your Settings model:
-
-```python
 # In models/settings.py
 class Settings(models.Model):
     discord_webhook_url = models.CharField(
@@ -190,64 +145,57 @@ class Settings(models.Model):
         default=0,
         null=True,
         blank=True,
-        help_text="Channel ID for corp summaries (via aadiscordbot)"
-    )
-    
-    discord_send_corp_summary = models.BooleanField(
-        default=True,
-        help_text="Send corp tax summaries"
-    )
+   🔧 Settings You Need to Add
+
+If you want buttons in your admin panel, add these to your Settings model:
+
+```python
+discord_send_individual_dms = True/False  # Turn DMs on or off
+discord_corp_channel_id = 123456789       # Your Discord channel number
+discord_send_corp_summary = True/False    # Turn reports on or off
 ```
 
-## 🔍 Verification
+## ✅ How to Test If It's Working
 
-### Check aa-discordbot is installed
+### Test 1: Is aa-discordbot installed?
 ```python
 try:
     from aadiscordbot.tasks import send_message
-    print("✅ aa-discordbot available")
-except ImportError:
-    print("❌ aa-discordbot not installed")
+    print("✅ Yes it's installed!")
+except:
+    print("❌ Nope, you need to install it")
 ```
 
-### Check Alliance Auth Discord service
+### Test 2: Can you find Discord users?
 ```python
-try:
-    from allianceauth.services.modules.discord.models import DiscordUser
-    print("✅ AA Discord service available")
-except ImportError:
-    print("❌ AA Discord service not configured")
-```
-
-### Test user has Discord linked
-```python
-from django.contrib.auth.models import User
 from discord_integration import get_user_discord_id
 
-user = User.objects.get(username='test_user')
-discord_id = get_user_discord_id(user)
+discord_id = get_user_discord_id(some_user)
 
 if discord_id:
-    print(f"✅ User Discord ID: {discord_id}")
+    print(f"✅ Found them! Their ID is {discord_id}")
 else:
-    print("❌ User has no Discord account linked")
+    print("❌ They haven't linked their Discord yet")
 ```
 
-## 📚 Documentation
+## ❓ Common Questions
 
-For complete documentation on how this integrates with MiningTaxes:
-- See the full plugin repository for implementation examples
-- Check DISCORD_INTEGRATION.md and DISCORD_DM_GUIDE.md in the main repo
+**Q: Do players need to do anything?**  
+A: Yes! They need to link their Discord account in Alliance Auth first.
 
-## 🔗 Dependencies Summary
+**Q: What if someone doesn't have Discord linked?**  
+A: The code skips them automatically - no error!
 
-| Function | aa-discordbot | AA Discord | requests |
-|----------|---------------|------------|----------|
-| send_discord_notification | ❌ | ❌ | ✅ |
-| send_discord_dm | ✅ Required | ❌ | ❌ |
-| get_user_discord_id | ❌ | ✅ Required | ❌ |
-| send_corp_tax_summary | ✅ Recommended | ❌ | ✅ Fallback |
+**Q: Can I change the message colors?**  
+A: Yes! Use these color codes:
+- `0xe74c3c` = Red
+- `0xf39c12` = Orange  
+- `0x2ecc71` = Green
+- `0x3498db` = Blue
 
-## 📝 License
+**Q: Where do I get a channel ID?**  
+A: In Discord, right-click a channel → Copy ID (you need Developer Mode on)
 
-See LICENSE file in repository root.
+## 📝 That's It!
+
+Copy the file, drop it in, use the examples above. Done! 🎉
